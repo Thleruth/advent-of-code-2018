@@ -1,0 +1,3 @@
+The two challenges were done but:
+1) without any code (just quick sum via excel)
+2) with code but did it on a foreign machine quickly and did not save it
