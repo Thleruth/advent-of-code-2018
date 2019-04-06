@@ -10,6 +10,7 @@ def main():
     print("length of: " + '' + str(len(simple_polymer)))
 
 
+# Leave it there for the future, not a clean way of doing and leads to seg fault
 def deconstruct_with_recursion(complex_polymer, start):
     sys.setrecursionlimit(50000)
     for i in range(start+1, len(complex_polymer)):
