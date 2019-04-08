@@ -9,21 +9,17 @@ def main():
         for line in f:
             data, chain = load_chain(line.split(" "))
 
-    print(calculate_total_meta(chain, 0))
+    print(calculate_meta(chain, 0))
 
 
-# build for fun
-def print_chain(chain):
-    print(len(chain.children), len(chain.metas), chain.metas)
-    for child in chain.children:
-        print_chain(child)
-
-
-def calculate_total_meta(chain, total):
-    for child in chain.children:
-        total = calculate_total_meta(child, total)
+def calculate_meta(chain, total):
+    children_amount = len(chain.children)
     for meta in chain.metas:
-        total += int(meta)
+        if meta <= children_amount:
+            total = calculate_meta(chain.children[meta-1], total)
+    if children_amount == 0:
+        for meta in chain.metas:
+            total += int(meta)
     return total
 
 
