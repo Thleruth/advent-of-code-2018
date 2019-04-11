@@ -21,6 +21,7 @@ with open("input.txt") as f:
     size = 250
     start_try = 1
     end_try = 20000
+    minimal_points = 150
 
     for i in range(start_try, end_try):
         print(i)
@@ -32,7 +33,7 @@ with open("input.txt") as f:
             if 0 <= x_position <= size - 1 and 0 <= y_position <= size - 1:
                 sky_lights[point.x + point.x_vel * i, point.y + point.y_vel * i] = "#"
         points_in_area = np.count_nonzero(sky_lights == "#")
-        if points_in_area >= 150:
+        if points_in_area >= minimal_points:
             print(i, points_in_area)
             for k in range(size):
                 for l in range(size):
