@@ -9,9 +9,14 @@ def main():
             changes[split[0]] = split[2].strip()
 
     extra_left = 0
-    generations = 20
+    generations = 50000000000
     for i in range(generations):
+        old_state = flowers
+        old_extra_left = extra_left
         flowers, extra_left = evolve(flowers, changes, extra_left)
+        if old_state == flowers:
+            extra_left = extra_left + (extra_left - old_extra_left) * (generations - (i + 1))
+            break
     print(flowers, find_score(flowers, extra_left))
 
 
