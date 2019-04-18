@@ -1,6 +1,17 @@
 import numpy as np
+from operator import attrgetter
 
 
+# A OK
+# B OK
+# 1 Ok
+# 2 Ok
+# 3 ok
+# 4 ok
+# 5 ok
+# All tests are passing but still off due to the mis-choice of target when multiple targets are within same distance
+# issue is that I test up, left, right, down but when the movement is more than one technically up/down < left/up
+# Thus the order is not correct. Positions need to be consolidated and tested while all gather for the movement level
 class Unit:
     def __init__(self, team, x, y):
         self.team = team
@@ -9,7 +20,7 @@ class Unit:
         self.health = 200
 
     def move(self, direction, cavern):
-        cavern[self.x][self.y] = 1
+        cavern[self.y][self.x] = 1
         if direction == 0:  # Up
             self.y -= 1
         elif direction == 1:  # Left
@@ -18,58 +29,98 @@ class Unit:
             self.x += 1
         elif direction == 3:  # Down
             self.y += 1
-        cavern[self.x][self.y] = 0
+        cavern[self.y][self.x] = 0
         return cavern
 
     def print_unit(self):
-        print(self.x, self.y, self.team)
+        print(self.x, self.y, self.team, self.health)
 
 def main():
+    file = "input.txt"
     units = []
-    size = 32
+    for line in open(file):
+        size = len(line)
     cavern = np.zeros([size, size])
 
     row = 0
-    for line in open("input.txt"):
+    for line in open(file):
         for i in range(len(line)):
+
             value, unit_type = input_to_pathway(ord(line[i]))
             if value != -1:
                 cavern[row][i] = value
-                if unit_type == 0:
-                    units.append(Unit(0, i, row))
-                elif unit_type == 1:
-                    units.append(Unit(1, i, row))
+                if unit_type >= 0:
+                    units.append(Unit(unit_type, i, row))
         row += 1
 
+    unit_count = [0, 0]
+    for unit in units:
+        unit_count[unit.team] += 1
 
-    for i in range(10):
-        print(i, len(units))
+    for i in range(1000):
+        # print(i, len(units))
+        print("start round #", i + 1)
         for unit in units:
+            # print("play", (unit.y, unit.x, unit.team, unit.health))
             if unit.health > 0:
-                targets = find_targets(units, (unit.team + 1)%1)
+                if unit_count[0] == 0 or unit_count[1] == 0:
+                    print(unit_count)
+                    health = 0
+                    full_round = i
+                    for test in units:
+                        if test.health > 0:
+                            print(test.health)
+                            health += test.health
+                    print(full_round, health, full_round * health)
+                    exit(1)
+                targets = find_targets(units, (unit.team + 1)%2)
                 target, target_distance, direction = find_closest_target(unit, targets, cavern)
                 if target is None:
-                    print(unit.y, unit.x, "No target reachable")
+                    # print(unit.y, unit.x, "No target reachable")
                     continue
                 elif target_distance > 1:
-                    print(unit.y, unit.x,"Target found movement on")
+                    # print(unit.y, unit.x, "Target found movement on")
                     index_unit = units.index(unit)
                     cavern = unit.move(direction, cavern)
                     units[index_unit] = unit
                 if target_distance <= 2:
-                    print(unit.y, unit.x, "Attacking time")
+                    # print(unit.x, unit.y, "Attacking time on ", (target.x, target.y, target.health))
                     updated_target_state = attack(target)
+                    # print(updated_target_state.y, updated_target_state.y, updated_target_state.health)
                     units[units.index(target)] = updated_target_state
                     if updated_target_state.health <= 0:
-                        cavern[updated_target_state.x][updated_target_state.y] = 1
+                        unit_count[updated_target_state.team] -= 1
+                        cavern[updated_target_state.y][updated_target_state.x] = 1
+
         update_units = []
+
         for unit in units:
             if unit.health > 0:
                 update_units.append(unit)
-        update_units.sort(key=lambda u: (u.x, u.y))
+        update_units.sort(key=lambda u: (u.y, u.x))
         units = update_units
 
-    # todo print map update with position of players and test versus inputs
+        for unit in update_units:
+            unit.print_unit()
+        for r in range(len(cavern)):
+            for c in range(len(cavern[r])):
+                found = False
+                for unit in units:
+                    if unit.y == r and unit.x == c:
+                        if unit.team == 1:
+                            print("E", end="")
+                            found = True
+                        else:
+                            print("G", end="")
+                            found = True
+                if not found:
+                    if cavern[r][c] == 0:
+                        print("#", end ="")
+                    else:
+                        print(".", end="")
+            print()
+
+        print("###############")
 
 def find_targets(units, team):
     targets = []
@@ -80,40 +131,42 @@ def find_targets(units, team):
 
 # in spiral way find closest target when found return both the target and its distance
 def find_closest_target(unit, targets, cavern):
-    # print("start", unit.x, unit.y)
     attackable_target = find_attackable_target(unit, (unit.x, unit.y), targets)
     if attackable_target:
         return attackable_target, 1, None
 
     move = 0
     size = len(cavern)
-    next_positions = [(unit.x, unit.y)]
+    next_positions = [(-1, (unit.x, unit.y))]
     visited = []
     while True:
         future_positions = []
-        # print(move, next_positions)
         for current_position in next_positions:
+            coordinate = current_position[1]
             for i in range(4):
                 test_position = ""
+                if move == 0:
+                    initial_movement = i
+                else:
+                    initial_movement = current_position[0]
                 if i == 0 and current_position[1] != 0:  # up
-                    test_position = (current_position[0], current_position[1] - 1)
-                elif i == 1 and current_position[0] != 0:  # left
-                    test_position = (current_position[0] - 1, current_position[1])
-                elif i == 2 and current_position[1] != size:  # right
-                    test_position = (current_position[0] + 1, current_position[1])
-                elif i == 3 and current_position[0] != size:  # down
-                    test_position = (current_position[0], current_position[1] + 1)
+                    test_position = (coordinate[0], coordinate[1] - 1)
+                elif i == 1 and coordinate[0] != 0:  # left
+                    test_position = (coordinate[0] - 1, coordinate[1])
+                elif i == 2 and coordinate[1] != size:  # right
+                    test_position = (coordinate[0] + 1, coordinate[1])
+                elif i == 3 and coordinate[0] != size:  # down
+                    test_position = (coordinate[0], coordinate[1] + 1)
+
                 if test_position and cavern[test_position[1], test_position[0]] == 1:
                     attackable_target = find_attackable_target(unit, (test_position[0], test_position[1]), targets)
                     if attackable_target:
-                        return attackable_target, move + 2, None
+                        return attackable_target, move + 2, initial_movement
                     else:
                         if test_position not in visited:
-                            future_positions.append(test_position)
+                            future_positions.append((initial_movement, test_position))
                             visited.append(test_position)
 
-        if move == 50:
-            exit(13)
         if len(future_positions) == 0:
             return None, None, None
         next_positions = future_positions
@@ -149,11 +202,18 @@ def find_closest_target(unit, targets, cavern):
     #     # t_d will +1 corner distance
 
 def find_attackable_target(attacker, coordinate, targets):
+    potential_targets = []
     for target in targets:
         if target.team != attacker.team:
             distance = abs(coordinate[0] - target.x) + abs(coordinate[1] - target.y)
-            if distance == 1:
-                return target
+            if distance == 1 and target.health > 0:
+                potential_targets.append(target)
+    if len(potential_targets) > 0:
+        potential_targets.sort(key=lambda t: (t.y, t.x))
+        # if coordinate[0] == 23 and coordinate[1] == 18:
+        #     for potential_target in potential_targets:
+        #         potential_target.print_unit()
+        return min(potential_targets, key=attrgetter('health'))
     return None
 
 
