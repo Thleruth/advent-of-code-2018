@@ -1,12 +1,14 @@
 import numpy as np
 from operator import attrgetter
 
+
 class Unit:
-    def __init__(self, team, x, y):
+    def __init__(self, team, x, y, power):
         self.team = team
         self.x = x
         self.y = y
         self.health = 200
+        self.power = power
 
     def move(self, direction, cavern):
         cavern[self.y][self.x] = 1
@@ -24,7 +26,17 @@ class Unit:
     def print_unit(self):
         print(self.x, self.y, self.team, self.health)
 
+
 def main():
+    power = 4
+    while True:
+        win = play(power)
+        if win:
+            break
+        power += 1
+
+
+def play(power):
     file = "input.txt"
     units = []
     for line in open(file):
@@ -39,23 +51,29 @@ def main():
             if value != -1:
                 cavern[row][i] = value
                 if unit_type >= 0:
-                    units.append(Unit(unit_type, i, row))
+                    if unit_type == 0:
+                        units.append(Unit(unit_type, i, row, 3))
+                    else:
+                        units.append(Unit(unit_type, i, row, power))
         row += 1
 
     unit_count = [0, 0]
     for unit in units:
         unit_count[unit.team] += 1
+    starting_elves = unit_count[1]
 
     for i in range(1000):
         for unit in units:
             if unit.health > 0:
-                if unit_count[0] == 0 or unit_count[1] == 0:
+                if unit_count[1] < starting_elves:
+                    return False
+                if unit_count[0] == 0:
                     health = 0
                     for test in units:
                         if test.health > 0:
                             health += test.health
                     print(i, health, i * health)
-                    exit(1)
+                    return True
                 targets = find_targets(units, (unit.team + 1)%2)
                 target, target_distance, direction = find_closest_target(unit, targets, cavern)
                 if target is None:
@@ -65,7 +83,7 @@ def main():
                     cavern = unit.move(direction, cavern)
                     units[index_unit] = unit
                 if target_distance <= 2:
-                    updated_target_state = attack(target)
+                    updated_target_state = attack(target, unit.power)
                     units[units.index(target)] = updated_target_state
                     if updated_target_state.health <= 0:
                         unit_count[updated_target_state.team] -= 1
@@ -155,8 +173,8 @@ def find_optimal_distance(unit, target):
     return abs(unit[0] - target[0]) + abs(unit[1] - target[1])
 
 
-def attack(target):
-    target.health -= 3
+def attack(target, power):
+    target.health -= power
     return target
 
 
